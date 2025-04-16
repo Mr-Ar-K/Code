@@ -32,7 +32,6 @@ reports/
 .DS_Store
 Thumbs.db
 
-
 # generated reports
 reports/
 *.txt
