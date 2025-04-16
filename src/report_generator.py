@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import os
 import matplotlib
 matplotlib.use('Agg')
@@ -362,7 +361,7 @@ def _create_stope_geometry_viz(dimensions):
     plt.tight_layout()
     plt.savefig('reports/stope_geometry.png', bbox_inches='tight', dpi=300)
     plt.close()
-=======
+
 import os
 import matplotlib
 matplotlib.use('Agg')
@@ -726,4 +725,3 @@ def _create_stope_geometry_viz(dimensions):
     plt.tight_layout()
     plt.savefig('reports/stope_geometry.png', bbox_inches='tight', dpi=300)
     plt.close()
->>>>>>> 52ce655ce85126d4f7249c6c512f79f7223f613b

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -55,7 +54,7 @@ def evaluate_model(data, model_path='models/failure_prediction_model.pkl'):
         print(f"Overall Model Accuracy: {accuracy:.3f}")
         print(classification_report(y, y_pred))
     except Exception as e:
-=======
+        print(f"Error evaluating model: {e}")
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -112,5 +111,4 @@ def evaluate_model(data, model_path='models/failure_prediction_model.pkl'):
         print(f"Overall Model Accuracy: {accuracy:.3f}")
         print(classification_report(y, y_pred))
     except Exception as e:
->>>>>>> 52ce655ce85126d4f7249c6c512f79f7223f613b
         print(f"Error evaluating model: {e}")

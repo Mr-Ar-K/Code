@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import pandas as pd
 import numpy as np
 import os
@@ -75,7 +74,7 @@ def save_filtered_data(filtered_data, filename='data/filtered_data.csv'):
         filtered_data.to_csv(filename, index=False)
         print(f"Filtered data saved to {filename}")
     except Exception as e:
-=======
+        print(f"Error saving filtered data: {e}")
 import pandas as pd
 import numpy as np
 import os
@@ -152,5 +151,4 @@ def save_filtered_data(filtered_data, filename='data/filtered_data.csv'):
         filtered_data.to_csv(filename, index=False)
         print(f"Filtered data saved to {filename}")
     except Exception as e:
->>>>>>> 52ce655ce85126d4f7249c6c512f79f7223f613b
         print(f"Error saving filtered data: {e}")

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import tkinter as tk
 from tkinter import ttk, Menu, messagebox, Frame, Scrollbar, LabelFrame, filedialog
 import os
@@ -475,7 +474,7 @@ class MiningStopeDesignApp:
 if __name__ == "__main__":
     app = MiningStopeDesignApp()
     app.run()
-=======
+
 import tkinter as tk
 from tkinter import ttk, Menu, messagebox, Frame, Scrollbar, LabelFrame, filedialog
 import os
@@ -952,4 +951,3 @@ class MiningStopeDesignApp:
 if __name__ == "__main__":
     app = MiningStopeDesignApp()
     app.run()
->>>>>>> 52ce655ce85126d4f7249c6c512f79f7223f613b

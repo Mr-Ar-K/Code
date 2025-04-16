@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import pandas as pd
 import json
 
@@ -83,7 +82,7 @@ def load_rock_properties(file_path):
     except Exception as e:
         print(f"Error loading rock properties: {e}")
         return None
-=======
+
 import pandas as pd
 import json
 
@@ -168,4 +167,3 @@ def load_rock_properties(file_path):
     except Exception as e:
         print(f"Error loading rock properties: {e}")
         return None
->>>>>>> 52ce655ce85126d4f7249c6c512f79f7223f613b

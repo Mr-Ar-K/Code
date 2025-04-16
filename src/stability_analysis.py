@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -294,7 +293,7 @@ def plot_rock_quality_histogram(rock_quality_data):
         plt.close()
     except Exception as e:
         print(f"Error generating rock quality histogram: {e}")
-=======
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -590,4 +589,3 @@ def plot_rock_quality_histogram(rock_quality_data):
         plt.close()
     except Exception as e:
         print(f"Error generating rock quality histogram: {e}")
->>>>>>> 52ce655ce85126d4f7249c6c512f79f7223f613b

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -97,7 +96,7 @@ def _generate_cost_visualizations(labor, equipment, support, ventilation):
     plt.tight_layout()
     plt.savefig('reports/cost_components_chart.png', bbox_inches='tight', dpi=300)
     plt.close()
-=======
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -196,4 +195,3 @@ def _generate_cost_visualizations(labor, equipment, support, ventilation):
     plt.tight_layout()
     plt.savefig('reports/cost_components_chart.png', bbox_inches='tight', dpi=300)
     plt.close()
->>>>>>> 52ce655ce85126d4f7249c6c512f79f7223f613b
