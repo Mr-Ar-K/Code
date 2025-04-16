@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+*.egg
+
+# Virtual Environments
+env/
+venv/
+.env/
+.vscode/
+.idea/
+
+# Build/Distribution
+build/
+dist/
+*.spec
+
+# Data & Models
+data/
+models/
+reports/
+
+# Logs & Cache
+*.log
+.cache/
+.coverage
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# generated reports
+reports/
+*.txt
+*.pdf
+*.html
