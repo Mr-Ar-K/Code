@@ -252,6 +252,11 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
             pdf.cell(0, 6, f'[Missing visualization: {caption}]', ln=True)
             _report_logger.warning(f"Missing visualization file: {viz_file}")
         pdf.ln(10)
+    # If no images were embedded, add a summary note
+    if not any(os.path.exists(f[0]) for f in visualization_files):
+        pdf.set_font('Arial', 'I', 11)
+        pdf.cell(0, 8, 'No visualizations could be embedded due to missing or invalid files.', ln=True)
+        pdf.ln(10)
     
     # Cost Analysis
     if costs:
@@ -272,7 +277,7 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
         for item in cost_items:
             if item in costs:
                 percentage = (costs[item] / total_cost * 100) if total_cost > 0 else 0
-                pdf.cell(0, 6, f'  • {item.title()}: INR {costs[item]:,.2f} ({percentage:.1f}%)', ln=True)
+                pdf.cell(0, 6, f'  - {item.title()}: INR {costs[item]:,.2f} ({percentage:.1f}%)', ln=True)
     
     # DGMS Compliance
     pdf.add_page()
@@ -283,7 +288,7 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
     
     pdf.set_font('Arial', '', 10)
     for key, reference in DGMS_REFERENCES.items():
-        pdf.multi_cell(0, 6, f'• {key.replace("_", " ").title()}: {reference}')
+        pdf.multi_cell(0, 6, f'- {key.replace("_", " ").title()}: {reference}')
     
     # Warnings and notes
     if dgms_warnings:
@@ -293,9 +298,8 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
         pdf.cell(0, 8, 'SAFETY ALERTS & COMPLIANCE NOTES:', ln=True)
         pdf.set_text_color(0, 0, 0)
         pdf.set_font('Arial', '', 10)
-        
         for warning in dgms_warnings:
-            pdf.multi_cell(0, 6, f'• {warning}')
+            pdf.multi_cell(0, 6, f'- {warning}')
     
     if notes:
         pdf.ln(5)

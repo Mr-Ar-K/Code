@@ -490,6 +490,12 @@ def create_cross_section_view(width, height, length, depth, stope_type, inputs):
     # Manually adjust margins to avoid excessive layout expansion
     fig.subplots_adjust(left=0.1, right=0.95, top=0.9, bottom=0.1)
     
+    # Set tight y-limits to remove blank space below
+    y_min = -depth - 10  # small margin below stope
+    y_max = height + 20  # margin above
+    ax1.set_ylim(y_min, y_max)
+    ax2.set_ylim(y_min, y_max)
+
     # Save with lower DPI for performance
     _save_fig(fig, 'reports/stope_cross_sections.png', base_dpi=100)
     plt.close()
