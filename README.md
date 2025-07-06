@@ -721,7 +721,7 @@ This software is designed for engineering analysis purposes. Users are responsib
 ---
 
 *Last Updated: July 2025*  
-*Version: 3.0.0*  
+*Version: 1.0.0*  
 *Compatible with Python 3.8+ and Indian Mining Standards*  
 *Tested on Windows, macOS, and Linux platforms*
 
