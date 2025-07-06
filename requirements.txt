@@ -1,6 +1,7 @@
+python
 matplotlib
 numpy
 pandas
 fpdf
-tk
+tkinter
 Pillow
