@@ -9,247 +9,248 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import logging
+import warnings
 
-# Indian Mining Standards constants
-DGMS_SAFETY_FACTOR_MIN = 1.5
-DGMS_PILLAR_WIDTH_MIN = 3.0
-CMRI_RMR_ADJUSTMENT = 5
-IBE_STRESS_FACTOR = 0.028
+# ============================================================================
+# CONSTANTS – INDIAN & INTERNATIONAL STANDARDS
+# ============================================================================
 
-# Asynchronous rendering configuration
-ENABLE_ASYNC_3D = True
-_3D_EXECUTOR = ThreadPoolExecutor(max_workers=1)
+DGMS_SAFETY_FACTOR_MIN = 1.5    # DGMS minimum safety factor (unitless)
+DGMS_PILLAR_WIDTH_MIN  = 3.0    # DGMS minimum pillar width (m)
+CMRI_RMR_ADJUSTMENT    = 5      # CMRI adjustment for Indian RMR
+IBE_STRESS_FACTOR      = 0.028  # MPa/m vertical stress coefficient
 
-# Visualization quality settings
-MAX_PIXEL_WIDTH = 2000  # Maximum pixel width for any image
-MAX_PIXEL_HEIGHT = 1500  # Maximum pixel height for any image
-BASE_DPI = 150          # Default DPI for simple plots
-LOW_DPI = 100           # DPI for complex plots or low-end systems
-MAX_DPI = 300           # Maximum DPI for high-quality outputs
+HOEK_MI_DEFAULT        = 15     # Hoek–Brown intact material constant
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Barton Q-System typical parameters for Indian metal mines
+Q_JOINT_SET_NUMBER     = 9
+Q_JOINT_ROUGHNESS      = 2
+Q_JOINT_ALTERATION     = 1
+Q_WATER_FACTOR         = 1.0
+Q_STRESS_REDUCTION     = 2.5
+
+ENABLE_ASYNC_3D        = True
+_3D_EXECUTOR           = ThreadPoolExecutor(max_workers=1)
+
+MAX_PIXEL_WIDTH  = 2000
+MAX_PIXEL_HEIGHT = 1500
+BASE_DPI         = 150
+LOW_DPI          = 100
+MAX_DPI          = 300
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 _viz_logger = logging.getLogger('visualization')
 
-def _save_fig(fig, filepath, max_w=MAX_PIXEL_WIDTH, max_h=MAX_PIXEL_HEIGHT, base_dpi=BASE_DPI, 
-             facecolor='white', edgecolor='none'):
-    """
-    Save a figure with adaptive DPI to control maximum pixel dimensions.
-    This prevents memory issues on low-end systems while maintaining quality.
-    
-    Args:
-        fig: matplotlib figure object
-        filepath: output file path
-        max_w: maximum width in pixels
-        max_h: maximum height in pixels
-        base_dpi: base DPI value before adjustment
-        facecolor: figure face color
-        edgecolor: figure edge color
-    """
-    # Create directory if it doesn't exist
+# ============================================================================
+# VISUALIZATION HELPERS
+# ============================================================================
+
+def _save_fig(fig, filepath, max_w=MAX_PIXEL_WIDTH, max_h=MAX_PIXEL_HEIGHT,
+              base_dpi=BASE_DPI, facecolor='white', edgecolor='none'):
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    
-    # Get figure dimensions in inches
-    fig_w, fig_h = fig.get_size_inches()
-    
-    # Calculate DPI needed to stay under pixel limits
-    dpi_w = max_w / fig_w
-    dpi_h = max_h / fig_h
-    
-    # Choose the minimum DPI that satisfies constraints
-    dpi_final = min(base_dpi, dpi_w, dpi_h)
-    
-    # Round to integer
-    dpi_final = int(max(LOW_DPI, min(dpi_final, MAX_DPI)))
-    
-    _viz_logger.info(f"Saving {filepath} with dimensions {fig_w:.1f}x{fig_h:.1f}in at {dpi_final} DPI")
-    
-    # Save with calculated DPI
-    # Use tight_bbox but catch warnings about tight layout issues
-    import warnings
+    w_in, h_in = fig.get_size_inches()
+    dpi_needed = min(base_dpi, max_w/w_in, max_h/h_in)
+    dpi_final = int(max(LOW_DPI, min(dpi_needed, MAX_DPI)))
+    _viz_logger.info(f"Saving {filepath} at {dpi_final} DPI")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        fig.savefig(filepath, dpi=dpi_final, bbox_inches='tight', 
-                   facecolor=facecolor, edgecolor=edgecolor)
+        fig.savefig(filepath, dpi=dpi_final, bbox_inches='tight',
+                    facecolor=facecolor, edgecolor=edgecolor)
 
 def _prism_faces(vertices):
-    """
-    Create a consistent set of faces for a rectangular prism.
-    Args:
-        vertices: list of 8 points in the following order:
-            [0-3] bottom face corners
-            [4-7] corresponding top face corners
-    Returns:
-        List of faces, each face is a list of vertices
-    """
     return [
-        [vertices[i] for i in (0, 1, 2, 3)],  # bottom face
-        [vertices[i] for i in (4, 5, 6, 7)],  # top face
-        [vertices[i] for i in (0, 1, 5, 4)],  # front face
-        [vertices[i] for i in (1, 2, 6, 5)],  # right face
-        [vertices[i] for i in (2, 3, 7, 6)],  # back face
-        [vertices[i] for i in (3, 0, 4, 7)],  # left face
+        [vertices[i] for i in (0,1,2,3)],
+        [vertices[i] for i in (4,5,6,7)],
+        [vertices[i] for i in (0,1,5,4)],
+        [vertices[i] for i in (1,2,6,5)],
+        [vertices[i] for i in (2,3,7,6)],
+        [vertices[i] for i in (3,0,4,7)],
     ]
 
-def determine_stope_type(inputs):
-    dip = inputs['dip_angle']
-    rqd = inputs['rqd']
-    depth = inputs.get('mining_depth', 300)
-    
-    # Enhanced classification with realistic Indian mining practices
-    if dip > 60 and rqd > 80 and depth < 800:
-        return "Vertical Crater Retreat"
-    elif dip > 45 and rqd > 75:
-        return "Sublevel Stoping"
-    elif 30 < dip <= 45 and rqd > 60:
-        return "Cut-and-Fill"
-    elif dip <= 30 and rqd > 50:
-        return "Room-and-Pillar"
+# ============================================================================
+# GEOTECHNICAL FORMULAE
+# ============================================================================
+
+def calculate_rmr_standard(rqd):
+    """RMR = 0.77 * RQD + 12 + CMRI adjustment"""
+    return max(0, min(100, 0.77*rqd + 12 + CMRI_RMR_ADJUSTMENT))
+
+def calculate_q_standard(rqd):
+    """Q = (RQD/Jn)*(Jr/Ja)*(Jw/SRF)"""
+    return (rqd/Q_JOINT_SET_NUMBER) * (Q_JOINT_ROUGHNESS/Q_JOINT_ALTERATION) * (Q_WATER_FACTOR/Q_STRESS_REDUCTION)
+
+def calculate_stability_number_standard(q_val, dip, depth):
+    """N' = Q * A * B * C"""
+    a = 0.85 if depth>500 else 1.0
+    b = max(0.2, min(1.0, 0.3 + (dip-20)/70))
+    c = 8 - 7*math.cos(math.radians(dip))
+    return q_val * a * b * c
+
+def calculate_horizontal_k_ratio_standard(depth):
+    """Brown-Hoek k-ratio decreases with depth"""
+    if depth<300:
+        k=1.5
     else:
+        k=0.65 + 1350/(depth+200)
+    return min(2.0, max(0.5, k))
+
+def calculate_ucs_from_rqd_standard(rqd):
+    """UCS = 20 + 0.8 * RQD (MPa)"""
+    return 20 + 0.8*rqd
+
+def calculate_gsi_from_rqd_standard(rqd):
+    """GSI = RQD - 15, bounded 20–85"""
+    return max(20, min(85, rqd-15))
+
+def calculate_hoek_brown_strength_standard(rqd):
+    """Unconfined rock mass strength σcm = σci * s^a"""
+    sigma_ci = calculate_ucs_from_rqd_standard(rqd)
+    gsi      = calculate_gsi_from_rqd_standard(rqd)
+    mb       = HOEK_MI_DEFAULT * math.exp((gsi-100)/28)
+    s        = math.exp((gsi-100)/9)
+    a        = 0.5 + (1/6)*(math.exp(-gsi/15)-math.exp(-20/3))
+    return sigma_ci * (s**a)
+
+def calculate_hydraulic_radius_design(n_prime):
+    """Mathews-Potvin piecewise hydraulic radius"""
+    if n_prime<=3:    return 2.5 + 0.5*n_prime
+    if n_prime<=10:   return 4.0 + 0.8*n_prime
+    return 7.0 + 5.0*math.log10(n_prime)
+
+# ============================================================================
+# MAIN CALCULATION FUNCTIONS
+# ============================================================================
+
+def determine_stope_type(inputs):
+    dip   = inputs['dip_angle']
+    rqd   = inputs['rqd']
+    depth = inputs.get('mining_depth', 300)
+
+    # 1. Vertical Crater Retreat
+    if dip > 60 and rqd >= 75 and depth < 800:
+        return "Vertical Crater Retreat"
+    # 2. Sublevel Stoping
+    if 45 < dip <= 60 and rqd >= 75:
+        return "Sublevel Stoping"
+    # 3. Cut-and-Fill
+    if 30 < dip <= 45 and rqd >= 60:
+        return "Cut-and-Fill"
+    # 4. Room-and-Pillar
+    if dip <= 30 and rqd >= 50:
+        return "Room-and-Pillar"
+    # 5. Shrinkage Stoping
+    if dip > 50 and rqd >= 40:
         return "Shrinkage Stoping"
+    # 6. Default fallback
+    return "Shrinkage Stoping"
 
 def calculate_stope_dimensions(inputs):
-    rqd = max(0, min(100, inputs['rqd']))
-    dip_angle = inputs['dip_angle']
-    safety_factor = DGMS_SAFETY_FACTOR_MIN  # Always use minimum as per DGMS, not from user input
-    ore_thickness = max(0.1, inputs.get('ore_thickness', 1))
-    depth = inputs.get('mining_depth', 300)
-    stope_type = determine_stope_type(inputs)
+    """
+    Standards‐compliant stope dimension calculation:
+      - Width = max(DGMS_PILLAR_WIDTH_MIN, 2·HR_design)
+      - Length = 10 * Width
+      - Height = 0.8 * Width
+    """
+    # Sanitize inputs
+    rqd           = max(0, min(100, inputs['rqd']))
+    dip_angle     = inputs['dip_angle']
+    depth         = inputs.get('mining_depth', 300)
+    stope_type    = determine_stope_type(inputs)
 
-    # Calculate Rock Mass Rating with Indian CMRI adjustment
-    rmr = 0.77 * rqd + 12 + CMRI_RMR_ADJUSTMENT
+    # Classification indices
+    rmr           = calculate_rmr_standard(rqd)
+    q_value       = calculate_q_standard(rqd)
+    n_prime       = calculate_stability_number_standard(q_value, dip_angle, depth)
 
-    # Calculate Q-value
-    jn = 9
-    jr = 2
-    ja = 1
-    jw = 1
-    srf = 2.5
-    q_value = (rqd/100) * (jr/ja) * (jw/srf)
+    # Design hydraulic radius (Mathews–Potvin)
+    hr_design     = calculate_hydraulic_radius_design(n_prime)
 
-    # Modified Stability Number calculation
-    nirm_factor = 0.85 if depth > 500 else 1.0
-    a_factor = 1.0 * nirm_factor
-    b_factor = max(0.2, min(1.0, 0.3 + ((dip_angle - 20) / 70)))
-    c_factor = 8 - 7 * (math.cos(math.radians(dip_angle)))
-    n_prime = q_value * a_factor * b_factor * c_factor
+    # Width from stability and DGMS minimum
+    width_raw     = max(DGMS_PILLAR_WIDTH_MIN, 2.0 * hr_design)
 
-    # Realistic dimensions based on stope type and mining standards
-    if stope_type == "Sublevel Stoping":
-        width = max(15, min(25, 12 + (rmr/10)))
-        length = max(40, min(80, width * 2.5 + (ore_thickness * 2)))
-        height = max(20, min(60, width * 1.8 + (depth/100)))
-    elif stope_type == "Room-and-Pillar":
-        width = max(6, min(12, 8 + (rmr/15)))
-        length = max(20, min(50, width * 3 + ore_thickness))
-        height = max(3, min(8, ore_thickness * 1.5 + 2))
-    elif stope_type == "Cut-and-Fill":
-        width = max(8, min(15, 10 + (rmr/12)))
-        length = max(30, min(60, width * 2.8))
-        height = max(4, min(12, 3 + ore_thickness))
-    elif stope_type == "Shrinkage Stoping":
-        width = max(4, min(8, 5 + (rmr/20)))
-        length = max(20, min(40, width * 4))
-        height = max(15, min(50, width * 3))
-    elif stope_type == "Vertical Crater Retreat":
-        width = max(20, min(35, 25 + (rmr/8)))
-        length = max(50, min(100, width * 2.2))
-        height = max(30, min(80, width * 1.6))
-    else:
-        width = max(DGMS_PILLAR_WIDTH_MIN, round(8 + (rmr/10), 2))
-        length = round(width * 2.5, 2)
-        height = round(width * 1.2, 2)
+    # Corrected: Length = 10 × Width
+    length_raw    = width_raw * 10
 
-    # Apply safety factor adjustments
-    width = round(width * safety_factor * 0.8, 2)
-    length = round(length, 2)
-    height = round(height, 2)
-    volume = round(length * width * height, 2)
+    # Corrected: Height = 0.8 × Width
+    height_raw    = width_raw * 0.8
+
+    # Apply DGMS safety adjustment on width
+    safety_adj    = max(0.85, min(1.0, DGMS_SAFETY_FACTOR_MIN/1.5*0.9))
+    width         = round(width_raw * safety_adj, 2)
+    # Use adjusted width for both length and height
+    length        = round(width * 10, 2)
+    height        = round(width * 0.8, 2)
+
+    # Volume and geometric hydraulic radius
+    volume        = round(width * length * height, 2)
+    hr_geometric  = round((width * height) / (2 * (width + height)), 2)
 
     return {
         'length': length,
         'width': width,
         'height': height,
         'volume': volume,
-        'hydraulic_radius': round((width * height) / (2 * (width + height)), 2),
+        'hydraulic_radius': hr_geometric,
+        'design_hydraulic_radius': round(hr_design, 2),
         'stability_number': round(n_prime, 2),
         'rmr': round(rmr, 2),
+        'q_value': round(q_value, 2),
         'stope_type': stope_type
     }
 
-def assess_stability(inputs, dimensions):
-    mining_depth = max(0.1, inputs['mining_depth'])
-    rqd = max(0, min(100, inputs['rqd']))
-    ore_thickness = max(0.1, inputs.get('ore_thickness', 1))
+def assess_stability(inputs, dims):
+    depth   = max(0.1, inputs['mining_depth'])
+    rqd     = max(0, min(100, inputs['rqd']))
+    ore_t   = max(0.1, inputs.get('ore_thickness',1))
 
-    # Calculate in-situ stress
-    vertical_stress = mining_depth * IBE_STRESS_FACTOR
+    # Calculate stresses using IBE and Brown-Hoek formulas
+    sig_v   = depth * IBE_STRESS_FACTOR
+    k_ratio = calculate_horizontal_k_ratio_standard(depth)
+    sig_h   = sig_v * k_ratio
 
-    # K-ratio for Indian Shield conditions
-    if mining_depth < 300:
-        k_ratio = 1.5
-    else:
-        k_ratio = 0.5 + (1.5 / (mining_depth/100))
-    
-    k_ratio = min(2.0, max(0.5, k_ratio))
-    horizontal_stress = vertical_stress * k_ratio
+    # Compute rock mass strength per Hoek-Brown criterion
+    rock_s  = calculate_hoek_brown_strength_standard(rqd)
+    # Apply empirical ore thickness adjustment (empirical factor)
+    rock_s *= (1 + 0.015*math.log(ore_t+1))
 
-    # Rock mass strength calculation
-    cimfr_factor = 0.85
-    ucs = 20 + (rqd * 0.8)
-    gsi = rqd * 0.8
-    mi = 10
-    mb = mi * math.exp((gsi - 100)/28) * cimfr_factor
-    s = math.exp((gsi - 100)/9) * cimfr_factor
-    
-    rock_strength = ucs * math.sqrt(mb * s)
-    adjusted_strength = rock_strength * (1 + 0.02 * ore_thickness)
-    
-    safety_factor = round(adjusted_strength / vertical_stress, 2)
-    
-    # DGMS stability classification
-    if safety_factor < DGMS_SAFETY_FACTOR_MIN:
-        stability_class = "Unstable (Below DGMS Minimum)"
-    elif safety_factor < 2.0:
-        stability_class = "Marginally Stable"
-    elif safety_factor < 2.5:
-        stability_class = "Stable"
-    else:
-        stability_class = "Highly Stable"
+    sf      = round(rock_s/sig_v,2)
+    if sf< DGMS_SAFETY_FACTOR_MIN: cls="Unstable (<DGMS)"
+    elif sf<2.0:                  cls="Marginal"
+    elif sf<2.5:                  cls="Stable"
+    else:                         cls="Highly Stable"
 
-    # Generate enhanced visualizations
-    generate_enhanced_stope_visualizations(dimensions, inputs, safety_factor, vertical_stress, horizontal_stress, adjusted_strength)
-    
+    generate_enhanced_stope_visualizations(dims, inputs, sf, sig_v, sig_h, rock_s)
     return {
-        'safety_factor': safety_factor,
-        'stability_class': stability_class,
-        'vertical_stress': round(vertical_stress, 2),
-        'horizontal_stress': round(horizontal_stress, 2),
-        'rock_strength': round(adjusted_strength, 2),
-        'dgms_compliant': safety_factor >= DGMS_SAFETY_FACTOR_MIN
+        'safety_factor': sf,
+        'stability_class': cls,
+        'vertical_stress': round(sig_v,2),
+        'horizontal_stress': round(sig_h,2),
+        'k_ratio': round(k_ratio,2),
+        'rock_strength': round(rock_s,2),
+        'dgms_compliant': sf>=DGMS_SAFETY_FACTOR_MIN
     }
 
-def generate_enhanced_stope_visualizations(dimensions, inputs, safety_factor, vertical_stress, horizontal_stress, rock_strength):
-    """Generate comprehensive realistic stope visualizations"""
+# ============================================================================
+# VISUALIZATION FUNCTIONS
+# ============================================================================
+
+def generate_enhanced_stope_visualizations(dimensions, inputs, safety_factor,
+                                           vertical_stress, horizontal_stress,
+                                           rock_strength):
     os.makedirs('reports', exist_ok=True)
-    
     stope_type = dimensions.get('stope_type', determine_stope_type(inputs))
-    width = dimensions['width']
-    height = dimensions['height'] 
-    length = dimensions['length']
-    depth = inputs.get('mining_depth', 300)
-    
-    # Generate multiple visualization views
+    w, h, L = dimensions['width'], dimensions['height'], dimensions['length']
+    d = inputs.get('mining_depth',300)
+
     if ENABLE_ASYNC_3D:
-        # Run 3D visualization asynchronously to avoid freezing the UI
         _viz_logger.info("Starting async 3D visualization rendering...")
-        _3D_EXECUTOR.submit(_generate_3d_isometric_view, width, height, length, depth, stope_type)
+        _3D_EXECUTOR.submit(_generate_3d_isometric_view, w, h, L, d, stope_type)
     else:
-        create_3d_isometric_view(width, height, length, depth, stope_type)
-    
-    # These views are simpler and can run in the main thread
-    create_cross_section_view(width, height, length, depth, stope_type, inputs)
-    create_plan_view(width, length, stope_type)
+        create_3d_isometric_view(w, h, L, d, stope_type)
+
+    create_cross_section_view(w, h, L, d, stope_type, inputs)
+    create_plan_view(w, L, stope_type, inputs)
     generate_safety_factor_gauge(safety_factor)
     create_stress_analysis_chart(vertical_stress, horizontal_stress, rock_strength)
 
@@ -354,10 +355,7 @@ def create_room_pillar_3d(ax, width, height, length, depth, ore_color, support_c
                 ax.add_collection3d(Poly3DCollection(pillar_faces, facecolors=support_color, edgecolors='black', alpha=0.8, linewidths=0.6))
 
 def create_cut_fill_3d(ax, width, height, length, depth, ore_color, waste_color):
-    """
-    3-D representation of cut-and-fill stoping.
-    Uses alternating ore (excavated slice) and waste (fill) colours.
-    """
+    """3-D representation of cut-and-fill stoping"""
     slice_height = max(2, height / 6)
     num_slices   = int(math.ceil(height / slice_height))
     for i in range(num_slices):
@@ -430,23 +428,35 @@ def add_underground_infrastructure(ax, width, height, length, depth):
 
 def create_cross_section_view(width, height, length, depth, stope_type, inputs):
     """Create detailed cross-section view"""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))  # smaller size for performance
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
 
     # Longitudinal section
     ax1.add_patch(plt.Rectangle((0, -depth), length, height, 
                                facecolor='gold', alpha=0.7, edgecolor='black', linewidth=2))
 
-    # Draw only 1 geological layer for clarity and performance
-    max_layers = 1
-    for i in range(1, max_layers+1):
-        layer_depth = -depth - (i * 50)
-        ax1.axhline(y=layer_depth, color='brown', linestyle='--', alpha=0.6)
-        if i == 1:
-            ax1.text(length/2, layer_depth-10, f'Geological Layer {i}', ha='center', fontsize=9)
+    # Draw ore-body layer in cross-section at face
+    ore_t = inputs.get('ore_thickness', 1)
+    ax1.add_patch(
+        plt.Rectangle((0, -depth), length, ore_t,
+                     facecolor='orange', alpha=0.5, edgecolor='none',
+                     label=f'Orebody ({ore_t} m)')
+    )
+    ax1.legend(loc='upper right')
+
+    # Draw geological layer
+    layer_depth = -depth - 50
+    ax1.axhline(y=layer_depth, color='brown', linestyle='--', alpha=0.6)
+    ax1.text(length/2, layer_depth-10, 'Geological Layer 1', ha='center', fontsize=9)
 
     # Cross section
     ax2.add_patch(plt.Rectangle((0, -depth), width, height,
                                facecolor='gold', alpha=0.7, edgecolor='black', linewidth=2))
+
+    # Draw ore-body layer in cross-section ax2
+    ax2.add_patch(
+        plt.Rectangle((0, -depth), width, ore_t,
+                     facecolor='orange', alpha=0.5, edgecolor='none')
+    )
 
     # Add support elements based on stope type
     if stope_type == "Room-and-Pillar":
@@ -487,29 +497,36 @@ def create_cross_section_view(width, height, length, depth, stope_type, inputs):
     ax1.set_aspect('equal')
     ax2.set_aspect('equal')
     
-    # Manually adjust margins to avoid excessive layout expansion
+    # Manually adjust margins
     fig.subplots_adjust(left=0.1, right=0.95, top=0.9, bottom=0.1)
     
     # Set tight y-limits to remove blank space below
-    y_min = -depth - 10  # small margin below stope
-    y_max = height + 20  # margin above
+    y_min = -depth - 10
+    y_max = height + 20
     ax1.set_ylim(y_min, y_max)
     ax2.set_ylim(y_min, y_max)
 
-    # Save with lower DPI for performance
     _save_fig(fig, 'reports/stope_cross_sections.png', base_dpi=100)
     plt.close()
 
-def create_plan_view(width, length, stope_type):
+def create_plan_view(width, length, stope_type, inputs):
     """Create plan view showing stope layout"""
     fig, ax = plt.subplots(figsize=(12, 8))
-    
+    # Orebody thickness footprint
+    ore_t = inputs.get('ore_thickness', 1)
+    # Draw orebody footprint centered in width
+    ax.add_patch(
+        plt.Rectangle((0, (width-ore_t)/2), length, ore_t,
+                     facecolor='orange', alpha=0.5, edgecolor='none',
+                     label=f'Orebody ({ore_t} m)')
+    )
+    ax.legend(loc='upper right')
+
     if stope_type == "Room-and-Pillar":
         # Create room and pillar grid pattern
         pillar_size = min(width, length) * 0.25
         room_size = min(width, length) * 0.35
         
-        # Draw rooms and pillars using np.arange for precise spacing
         step = room_size + pillar_size
         for i in np.arange(0, length, step):
             for j in np.arange(0, width, step):
@@ -531,12 +548,23 @@ def create_plan_view(width, length, stope_type):
                     ax.text(pillar_x + pillar_size/2, pillar_y + pillar_size/2, 'PILLAR',
                            ha='center', va='center', fontsize=6, weight='bold')
     else:
-        # Single large stope
+        # Single large stope - show actual calculated dimensions
         main_stope = plt.Rectangle((0, 0), length, width,
                                  facecolor='gold', alpha=0.7, edgecolor='black', linewidth=3)
         ax.add_patch(main_stope)
-        ax.text(length/2, width/2, f'{stope_type.upper()}\nSTOPE',
-               ha='center', va='center', fontsize=14, weight='bold')
+        
+        # Add dimension text with formula explanation
+        ax.text(length/2, width/2, f'{stope_type.upper()}\nSTOPE\n\nL = {length}m (W × 10)\nW = {width}m',
+               ha='center', va='center', fontsize=12, weight='bold',
+               bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.9))
+        
+        # Add corner reinforcement symbols
+        corner_size = min(length, width) * 0.05
+        corners = [(0, 0), (length-corner_size, 0), (length-corner_size, width-corner_size), (0, width-corner_size)]
+        for x, y in corners:
+            corner = plt.Rectangle((x, y), corner_size, corner_size,
+                                 facecolor='red', alpha=0.8, edgecolor='black')
+            ax.add_patch(corner)
     
     # Add access infrastructure
     # Main drift
@@ -557,18 +585,20 @@ def create_plan_view(width, length, stope_type):
     ax.add_patch(vent_raise)
     ax.text(length*0.9, width*0.1 - 3, 'VENT RAISE', ha='center', fontsize=8, weight='bold')
     
-    # Add dimensions
+    # Add dimensions with formulas
     ax.annotate('', xy=(0, -width*0.1), xytext=(length, -width*0.1),
                 arrowprops=dict(arrowstyle='<->', color='red', lw=2))
-    ax.text(length/2, -width*0.15, f'Length: {length}m', ha='center', 
-           fontsize=12, color='red', weight='bold')
+    ax.text(length/2, -width*0.15, f'Length: {length}m (Width × 10)', ha='center', 
+           fontsize=12, color='red', weight='bold',
+           bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.9))
     
     ax.annotate('', xy=(-length*0.1, 0), xytext=(-length*0.1, width),
                 arrowprops=dict(arrowstyle='<->', color='red', lw=2))
-    ax.text(-length*0.15, width/2, f'Width: {width}m', rotation=90, ha='center', va='center',
-           fontsize=12, color='red', weight='bold')
+    ax.text(-length*0.15, width/2, f'Width: {width}m (2 × HR)', rotation=90, ha='center', va='center',
+           fontsize=12, color='red', weight='bold',
+           bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.9))
     
-    ax.set_title(f'{stope_type} - Plan View Layout', fontsize=16, weight='bold', pad=20)
+    ax.set_title(f'{stope_type} - Plan View (Standard Dimensions)', fontsize=16, weight='bold', pad=20)
     ax.set_xlabel('Length (m)', fontsize=12)
     ax.set_ylabel('Width (m)', fontsize=12)
     ax.grid(True, alpha=0.3)
@@ -578,7 +608,6 @@ def create_plan_view(width, length, stope_type):
     ax.set_xlim(-length*0.2, length*1.1)
     ax.set_ylim(-width*0.2, width*1.1)
     
-    # Use subplots_adjust instead of tight_layout to avoid warnings
     fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
     _save_fig(fig, 'reports/stope_plan_view.png')
     plt.close()
@@ -594,7 +623,6 @@ def generate_safety_factor_gauge(safety_factor):
     safe_zone = 3.0
     
     # Create semicircle gauge
-    theta = np.linspace(0, np.pi, 100)
     r = 1.0
     
     # Background arcs
@@ -665,7 +693,6 @@ def generate_safety_factor_gauge(safety_factor):
     ax.axis('off')
     ax.set_title('Stope Stability Safety Factor Analysis', fontsize=18, weight='bold', pad=30)
     
-    # Use subplots_adjust instead of tight_layout to avoid warnings
     fig.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.05)
     _save_fig(fig, 'reports/safety_factor_gauge.png')
     plt.close()
@@ -697,24 +724,31 @@ def create_stress_analysis_chart(vertical_stress, horizontal_stress, rock_streng
     ax1.legend(fontsize=10)
     ax1.grid(axis='y', alpha=0.3)
     
-    # Stress distribution with depth
+    # Stress distribution with depth using updated k-ratio
     depths = np.linspace(0, 1000, 50)
     v_stress = depths * IBE_STRESS_FACTOR
-    h_stress = v_stress * 1.2  # Typical k-ratio
+    # Use the actual k-ratio formula for horizontal stress
+    h_stress = np.array([v_stress[i] * calculate_horizontal_k_ratio_standard(depths[i]) for i in range(len(depths))])
     
     ax2.plot(v_stress, depths, 'r-', linewidth=3, label='Vertical Stress', alpha=0.8)
-    ax2.plot(h_stress, depths, 'b-', linewidth=3, label='Horizontal Stress', alpha=0.8)
+    ax2.plot(h_stress, depths, 'b-', linewidth=3, label='Horizontal Stress (k-ratio)', alpha=0.8)
     ax2.axhline(y=vertical_stress/IBE_STRESS_FACTOR, color='orange', linestyle=':', 
                linewidth=3, label=f'Current Depth ({vertical_stress/IBE_STRESS_FACTOR:.0f}m)')
     
-    ax2.set_title('Stress Distribution with Depth', fontsize=14, weight='bold')
+    # Add k-ratio annotation
+    current_depth = vertical_stress/IBE_STRESS_FACTOR
+    current_k = calculate_horizontal_k_ratio_standard(current_depth)
+    ax2.text(max(v_stress)*0.7, current_depth + 50, f'k-ratio = {current_k:.2f}', 
+             fontsize=10, weight='bold', 
+             bbox=dict(boxstyle="round,pad=0.3", facecolor="lightblue", alpha=0.8))
+    
+    ax2.set_title('Stress vs. Depth (Brown-Hoek k-ratio)', fontsize=14, weight='bold')
     ax2.set_xlabel('Stress (MPa)', fontsize=12)
     ax2.set_ylabel('Depth (m)', fontsize=12)
     ax2.legend(fontsize=10)
     ax2.grid(True, alpha=0.3)
     ax2.invert_yaxis()
     
-    # Use subplots_adjust instead of tight_layout to avoid warnings
     fig.subplots_adjust(left=0.08, right=0.92, top=0.9, bottom=0.1, wspace=0.25)
     _save_fig(fig, 'reports/stress_strength_comparison.png')
     plt.close()
@@ -738,7 +772,6 @@ def plot_stability_analysis(stability_data):
         plt.ylabel('Safety Factor', fontsize=12)
         plt.legend(fontsize=10)
         plt.grid(True, alpha=0.3)
-        # Use subplots_adjust instead of tight_layout to avoid warnings
         fig.subplots_adjust(left=0.1, right=0.95, top=0.9, bottom=0.12)
         _save_fig(fig, 'reports/stability_analysis_plot.png')
         plt.close()
