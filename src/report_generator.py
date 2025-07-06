@@ -163,14 +163,14 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
     pdf.set_fill_color(230, 230, 250)  # Lavender
     pdf.cell(0, 10, 'EXECUTIVE SUMMARY', ln=True, fill=True)
     pdf.ln(5)
-    
+
     pdf.set_font('Arial', '', 11)
     safety_factor = stability.get('safety_factor', 'N/A')
     dgms_compliant = stability.get('dgms_compliant', False)
     total_cost = costs.get('total', 0)
-    
-    summary_text = f"""This report presents a comprehensive analysis of a {stope_type} design with dimensions of {dimensions.get('length', 'N/A')}m × {dimensions.get('width', 'N/A')}m × {dimensions.get('height', 'N/A')}m. The design achieves a safety factor of {safety_factor}, which is {'compliant' if dgms_compliant else 'non-compliant'} with DGMS standards. Total project cost is estimated at ₹{total_cost:,.2f}."""
-    
+
+    summary_text = f"""This report presents a comprehensive analysis of a {stope_type} design with dimensions of {dimensions.get('length', 'N/A')}m × {dimensions.get('width', 'N/A')}m × {dimensions.get('height', 'N/A')}m. The design achieves a safety factor of {safety_factor}, which is {'compliant' if dgms_compliant else 'non-compliant'} with DGMS standards. Total project cost is estimated at INR {total_cost:,.2f}."""
+
     pdf.multi_cell(0, 6, summary_text)
     pdf.ln(5)
     
@@ -196,7 +196,7 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
     
     for label, value in spec_data:
         pdf.cell(60, 6, f'{label}:', ln=0)
-        pdf.cell(0, 6, str(value), ln=True)
+        pdf.cell(0, 6, str(value).replace('₹', 'INR'), ln=True)
     
     pdf.ln(5)
     
@@ -220,7 +220,7 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
             pdf.set_text_color(255, 0, 0)  # Red
         elif 'COMPLIANT' in str(value):
             pdf.set_text_color(0, 128, 0)  # Green
-        pdf.cell(0, 6, str(value), ln=True)
+        pdf.cell(0, 6, str(value).replace('₹', 'INR'), ln=True)
         pdf.set_text_color(0, 0, 0)  # Reset to black
     
     pdf.ln(10)
@@ -239,9 +239,7 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
         pdf.set_font('Arial', 'B', 14)
         pdf.cell(0, 10, caption, ln=True, align='C')
         pdf.ln(5)
-        
         if os.path.exists(viz_file):
-            # Add image with proper sizing
             try:
                 _report_logger.info(f"Embedding visualization: {viz_file}")
                 pdf.image(viz_file, x=10, w=180)
@@ -253,7 +251,6 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
             pdf.set_font('Arial', '', 10)
             pdf.cell(0, 6, f'[Missing visualization: {caption}]', ln=True)
             _report_logger.warning(f"Missing visualization file: {viz_file}")
-            
         pdf.ln(10)
     
     # Cost Analysis
@@ -263,22 +260,19 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
         pdf.set_fill_color(230, 230, 250)
         pdf.cell(0, 10, 'COST ANALYSIS (INR)', ln=True, fill=True)
         pdf.ln(5)
-        
         pdf.set_font('Arial', 'B', 12)
         pdf.set_text_color(0, 0, 139)  # Dark blue
-        pdf.cell(0, 8, f'Total Project Cost: ₹{total_cost:,.2f}', ln=True)
+        pdf.cell(0, 8, f'Total Project Cost: INR {total_cost:,.2f}', ln=True)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(5)
-        
         pdf.set_font('Arial', 'B', 11)
         pdf.cell(0, 8, 'Detailed Cost Breakdown:', ln=True)
         pdf.set_font('Arial', '', 10)
-        
         cost_items = ['labor', 'equipment', 'support', 'ventilation']
         for item in cost_items:
             if item in costs:
                 percentage = (costs[item] / total_cost * 100) if total_cost > 0 else 0
-                pdf.cell(0, 6, f'  • {item.title()}: ₹{costs[item]:,.2f} ({percentage:.1f}%)', ln=True)
+                pdf.cell(0, 6, f'  • {item.title()}: INR {costs[item]:,.2f} ({percentage:.1f}%)', ln=True)
     
     # DGMS Compliance
     pdf.add_page()

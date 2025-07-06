@@ -430,18 +430,18 @@ def add_underground_infrastructure(ax, width, height, length, depth):
 
 def create_cross_section_view(width, height, length, depth, stope_type, inputs):
     """Create detailed cross-section view"""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))  # reduced size
-    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))  # smaller size for performance
+
     # Longitudinal section
     ax1.add_patch(plt.Rectangle((0, -depth), length, height, 
                                facecolor='gold', alpha=0.7, edgecolor='black', linewidth=2))
 
-    # Draw at most 3 geological layers for clarity
-    max_layers = min(3, inputs.get('num_layers', 4))
+    # Draw only 1 geological layer for clarity and performance
+    max_layers = 1
     for i in range(1, max_layers+1):
         layer_depth = -depth - (i * 50)
         ax1.axhline(y=layer_depth, color='brown', linestyle='--', alpha=0.6)
-        if i == 1:  # Only label the first layer to reduce clutter
+        if i == 1:
             ax1.text(length/2, layer_depth-10, f'Geological Layer {i}', ha='center', fontsize=9)
 
     # Cross section
@@ -490,8 +490,8 @@ def create_cross_section_view(width, height, length, depth, stope_type, inputs):
     # Manually adjust margins to avoid excessive layout expansion
     fig.subplots_adjust(left=0.1, right=0.95, top=0.9, bottom=0.1)
     
-    # Save with adaptive DPI
-    _save_fig(fig, 'reports/stope_cross_sections.png', base_dpi=150)
+    # Save with lower DPI for performance
+    _save_fig(fig, 'reports/stope_cross_sections.png', base_dpi=100)
     plt.close()
 
 def create_plan_view(width, length, stope_type):
