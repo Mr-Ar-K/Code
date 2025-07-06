@@ -669,7 +669,9 @@ We welcome contributions to improve the Mining Stope Design Tool. Here's how you
 ### Planned Features
 - **Version 1.1.0**: Enhanced visualization options, additional ore types
 - **Version 1.2.0**: Advanced stability analysis, improved cost estimation
-- **Version 2.0.0**: Web-based interface, cloud storage integration
+- **Version 2.0.0**: Web-based interface, cloud storage integration, basic ML-assisted parameter validation, machine learning predictive modeling
+- **Version 2.1.0**: AI-powered stope optimization algorithms, AI-driven geological interpretation, automated rock mass classification using computer vision
+- **Version 3.0.0**: Deep learning for failure prediction, intelligent mining sequence optimization, real-time AI monitoring integration
 
 ## License
 
