@@ -128,176 +128,310 @@ def generate_summary_text(results, filename='reports/stope_summary.txt', notes=N
     return filename
 
 def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None):
-    """Generate comprehensive PDF report with enhanced visualizations"""
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    
-    _report_logger.info(f"Generating PDF report: {filename}")
-    
-    stability = results.get('stability', {})
-    dimensions = results.get('dimensions', {})
-    costs = results.get('costs', {})
-    dgms_warnings = results.get('dgms_warnings', [])
-    stope_type = results.get('stope_type', 'Unknown')
-    
-    # Initialize PDF with enhanced formatting
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    
-    # Enhanced header
-    pdf.set_font('Arial', 'B', 20)
-    pdf.set_text_color(25, 25, 112)  # Navy blue
-    pdf.cell(0, 15, 'ADVANCED MINING STOPE DESIGN REPORT', ln=True, align='C')
-    
-    pdf.set_font('Arial', 'I', 12)
-    pdf.set_text_color(128, 128, 128)  # Gray
-    pdf.cell(0, 8, f'Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S IST")}', ln=True, align='C')
-    pdf.cell(0, 8, 'Compliant with DGMS, MMR & IBM Standards', ln=True, align='C')
-    pdf.ln(10)
-    
-    # Reset text color
-    pdf.set_text_color(0, 0, 0)
-    
-    # Executive Summary
-    pdf.set_font('Arial', 'B', 14)
-    pdf.set_fill_color(230, 230, 250)  # Lavender
-    pdf.cell(0, 10, 'EXECUTIVE SUMMARY', ln=True, fill=True)
-    pdf.ln(5)
-
-    pdf.set_font('Arial', '', 11)
-    safety_factor = stability.get('safety_factor', 'N/A')
-    dgms_compliant = stability.get('dgms_compliant', False)
-    total_cost = costs.get('total', 0)
-
-    summary_text = f"""This report presents a comprehensive analysis of a {stope_type} design with dimensions of {dimensions.get('length', 'N/A')}m × {dimensions.get('width', 'N/A')}m × {dimensions.get('height', 'N/A')}m. The design achieves a safety factor of {safety_factor}, which is {'compliant' if dgms_compliant else 'non-compliant'} with DGMS standards. Total project cost is estimated at INR {total_cost:,.2f}."""
-
-    pdf.multi_cell(0, 6, summary_text)
-    pdf.ln(5)
-    
-    # Technical Specifications
-    pdf.set_font('Arial', 'B', 14)
-    pdf.set_fill_color(230, 230, 250)
-    pdf.cell(0, 10, 'TECHNICAL SPECIFICATIONS', ln=True, fill=True)
-    pdf.ln(5)
-    
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 8, 'Stope Configuration:', ln=True)
-    pdf.set_font('Arial', '', 11)
-    
-    spec_data = [
-        ('Mining Method', stope_type),
-        ('Length', f"{dimensions.get('length', 'N/A')} m"),
-        ('Width', f"{dimensions.get('width', 'N/A')} m"),
-        ('Height', f"{dimensions.get('height', 'N/A')} m"),
-        ('Volume', f"{dimensions.get('volume', 'N/A')} m³"),
-        ('Hydraulic Radius', f"{dimensions.get('hydraulic_radius', 'N/A')} m"),
-        ('Rock Mass Rating', f"{dimensions.get('rmr', 'N/A')}")
-    ]
-    
-    for label, value in spec_data:
-        pdf.cell(60, 6, f'{label}:', ln=0)
-        pdf.cell(0, 6, str(value).replace('₹', 'INR'), ln=True)
-    
-    pdf.ln(5)
-    
-    # Stability Analysis
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 8, 'Geotechnical Analysis:', ln=True)
-    pdf.set_font('Arial', '', 11)
-    
-    compliance_text = "COMPLIANT" if dgms_compliant else "NON-COMPLIANT"
-    stability_data = [
-        ('Safety Factor', f"{safety_factor} ({compliance_text})"),
-        ('Stability Class', stability.get('stability_class', 'N/A')),
-        ('Vertical Stress', f"{stability.get('vertical_stress', 'N/A')} MPa"),
-        ('Horizontal Stress', f"{stability.get('horizontal_stress', 'N/A')} MPa"),
-        ('Rock Strength', f"{stability.get('rock_strength', 'N/A')} MPa")
-    ]
-    
-    for label, value in stability_data:
-        pdf.cell(60, 6, f'{label}:', ln=0)
-        if 'NON-COMPLIANT' in str(value):
-            pdf.set_text_color(255, 0, 0)  # Red
-        elif 'COMPLIANT' in str(value):
-            pdf.set_text_color(0, 128, 0)  # Green
-        pdf.cell(0, 6, str(value).replace('₹', 'INR'), ln=True)
-        pdf.set_text_color(0, 0, 0)  # Reset to black
-    
-    pdf.ln(10)
-    
-    # Add enhanced visualizations
-    visualization_files = [
-        ('reports/stope_3d_isometric.png', 'Realistic 3D Stope Visualization'),
-        ('reports/stope_cross_sections.png', 'Cross-Sectional Views'),
-        ('reports/stope_plan_view.png', 'Plan View Layout'),
-        ('reports/safety_factor_gauge.png', 'Safety Factor Analysis'),
-        ('reports/stress_strength_comparison.png', 'Stress vs Strength Analysis')
-    ]
-    
-    for viz_file, caption in visualization_files:
+    """Generate comprehensive PDF report with enhanced visualizations and PowerShell compatibility"""
+    try:
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        
+        _report_logger.info(f"Generating PDF report: {filename}")
+        
+        stability = results.get('stability', {})
+        dimensions = results.get('dimensions', {})
+        costs = results.get('costs', {})
+        dgms_warnings = results.get('dgms_warnings', [])
+        stope_type = results.get('stope_type', 'Unknown')
+        
+        # Initialize PDF with enhanced formatting and safe font handling
+        pdf = FPDF()
         pdf.add_page()
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, caption, ln=True, align='C')
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        # Use built-in fonts to avoid substitution issues
+        # Set up page margins for better text rendering
+        pdf.set_margins(20, 20, 20)
+        
+        # Enhanced header with safe font handling
+        try:
+            pdf.set_font('Helvetica', 'B', 18)  # Use Helvetica instead of Arial
+        except:
+            pdf.set_font('Arial', 'B', 18)  # Fallback to Arial
+            
+        pdf.set_text_color(25, 25, 112)  # Navy blue
+        pdf.cell(0, 15, 'MINING STOPE DESIGN REPORT', ln=True, align='C')
+        
+        try:
+            pdf.set_font('Helvetica', 'I', 11)
+        except:
+            pdf.set_font('Arial', 'I', 11)
+            
+        pdf.set_text_color(128, 128, 128)  # Gray
+        pdf.cell(0, 8, f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M IST")}', ln=True, align='C')
+        pdf.cell(0, 8, 'DGMS, MMR & IBM Compliant', ln=True, align='C')
+        pdf.ln(10)
+        
+        # Reset text color
+        pdf.set_text_color(0, 0, 0)
+        
+        # Executive Summary with safe text handling
+        try:
+            pdf.set_font('Helvetica', 'B', 14)
+        except:
+            pdf.set_font('Arial', 'B', 14)
+            
+        pdf.set_fill_color(230, 230, 250)  # Lavender
+        pdf.cell(0, 10, 'EXECUTIVE SUMMARY', ln=True, fill=True)
         pdf.ln(5)
-        if os.path.exists(viz_file):
-            try:
-                _report_logger.info(f"Embedding visualization: {viz_file}")
-                pdf.image(viz_file, x=10, w=180)
-            except Exception as e:
-                pdf.set_font('Arial', '', 10)
-                pdf.cell(0, 6, f'[Error loading {caption}: {str(e)}]', ln=True)
-                _report_logger.error(f"Failed to embed image {viz_file} in PDF: {str(e)}")
-        else:
+
+        try:
+            pdf.set_font('Helvetica', '', 10)
+        except:
             pdf.set_font('Arial', '', 10)
-            pdf.cell(0, 6, f'[Missing visualization: {caption}]', ln=True)
-            _report_logger.warning(f"Missing visualization file: {viz_file}")
-        pdf.ln(10)
-    # If no images were embedded, add a summary note
-    if not any(os.path.exists(f[0]) for f in visualization_files):
-        pdf.set_font('Arial', 'I', 11)
-        pdf.cell(0, 8, 'No visualizations could be embedded due to missing or invalid files.', ln=True)
-        pdf.ln(10)
-    
-    # Cost Analysis
-    if costs:
-        pdf.add_page()
-        pdf.set_font('Arial', 'B', 14)
+            
+        safety_factor = stability.get('safety_factor', 'N/A')
+        dgms_compliant = stability.get('dgms_compliant', False)
+        total_cost = costs.get('total', 0)
+
+        # Create shorter, safer text blocks
+        length_val = dimensions.get('length', 'N/A')
+        width_val = dimensions.get('width', 'N/A')
+        height_val = dimensions.get('height', 'N/A')
+        
+        summary_lines = [
+            f"Stope Type: {stope_type}",
+            f"Dimensions: {length_val}m x {width_val}m x {height_val}m",
+            f"Safety Factor: {safety_factor}",
+            f"DGMS Status: {'Compliant' if dgms_compliant else 'Non-Compliant'}",
+            f"Estimated Cost: INR {total_cost:,.0f}"
+        ]
+        
+        for line in summary_lines:
+            # Ensure line fits on page with safe width calculation
+            try:
+                line_width = pdf.get_string_width(line)
+                if line_width > 170:  # Max safe width
+                    pdf.multi_cell(0, 6, line)
+                else:
+                    pdf.cell(0, 6, line, ln=True)
+            except:
+                # Fallback: always use multi_cell for safety
+                pdf.multi_cell(0, 6, line)
+        
+        pdf.ln(5)
+        # Technical Specifications with safe formatting
+        try:
+            pdf.set_font('Helvetica', 'B', 14)
+        except:
+            pdf.set_font('Arial', 'B', 14)
+            
         pdf.set_fill_color(230, 230, 250)
-        pdf.cell(0, 10, 'COST ANALYSIS (INR)', ln=True, fill=True)
+        pdf.cell(0, 10, 'TECHNICAL SPECIFICATIONS', ln=True, fill=True)
         pdf.ln(5)
-        pdf.set_font('Arial', 'B', 12)
-        pdf.set_text_color(0, 0, 139)  # Dark blue
-        pdf.cell(0, 8, f'Total Project Cost: INR {total_cost:,.2f}', ln=True)
-        pdf.set_text_color(0, 0, 0)
+        
+        try:
+            pdf.set_font('Helvetica', 'B', 12)
+        except:
+            pdf.set_font('Arial', 'B', 12)
+            
+        pdf.cell(0, 8, 'Stope Configuration:', ln=True)
+        
+        try:
+            pdf.set_font('Helvetica', '', 10)
+        except:
+            pdf.set_font('Arial', '', 10)
+        
+        spec_data = [
+            ('Mining Method', stope_type),
+            ('Length', f"{dimensions.get('length', 'N/A')} m"),
+            ('Width', f"{dimensions.get('width', 'N/A')} m"),
+            ('Height', f"{dimensions.get('height', 'N/A')} m"),
+            ('Volume', f"{dimensions.get('volume', 'N/A')} m3"),
+            ('Hydraulic Radius', f"{dimensions.get('hydraulic_radius', 'N/A')} m"),
+            ('Rock Mass Rating', f"{dimensions.get('rmr', 'N/A')}")
+        ]
+        
+        for label, value in spec_data:
+            try:
+                # Use safe cell widths to prevent overflow
+                pdf.cell(70, 6, f'{label}:', ln=0)
+                pdf.cell(100, 6, str(value), ln=True)
+            except:
+                # Fallback to multi_cell for problematic content
+                pdf.multi_cell(0, 6, f'{label}: {value}')
+        
         pdf.ln(5)
-        pdf.set_font('Arial', 'B', 11)
-        pdf.cell(0, 8, 'Detailed Cost Breakdown:', ln=True)
-        pdf.set_font('Arial', '', 10)
-        cost_items = ['labor', 'equipment', 'support', 'ventilation']
-        for item in cost_items:
-            if item in costs:
-                percentage = (costs[item] / total_cost * 100) if total_cost > 0 else 0
-                pdf.cell(0, 6, f'  - {item.title()}: INR {costs[item]:,.2f} ({percentage:.1f}%)', ln=True)
+        # Stability Analysis with improved formatting
+        try:
+            pdf.set_font('Helvetica', 'B', 12)
+        except:
+            pdf.set_font('Arial', 'B', 12)
+            
+        pdf.cell(0, 8, 'Geotechnical Analysis:', ln=True)
+        
+        try:
+            pdf.set_font('Helvetica', '', 10)
+        except:
+            pdf.set_font('Arial', '', 10)
+        
+        compliance_text = "COMPLIANT" if dgms_compliant else "NON-COMPLIANT"
+        stability_data = [
+            ('Safety Factor', f"{safety_factor} ({compliance_text})"),
+            ('Stability Class', stability.get('stability_class', 'N/A')),
+            ('Vertical Stress', f"{stability.get('vertical_stress', 'N/A')} MPa"),
+            ('Horizontal Stress', f"{stability.get('horizontal_stress', 'N/A')} MPa"),
+            ('Rock Strength', f"{stability.get('rock_strength', 'N/A')} MPa")
+        ]
+        
+        for label, value in stability_data:
+            try:
+                pdf.cell(70, 6, f'{label}:', ln=0)
+                if 'NON-COMPLIANT' in str(value):
+                    pdf.set_text_color(255, 0, 0)  # Red
+                elif 'COMPLIANT' in str(value):
+                    pdf.set_text_color(0, 128, 0)  # Green
+                pdf.cell(100, 6, str(value), ln=True)
+                pdf.set_text_color(0, 0, 0)  # Reset to black
+            except:
+                # Fallback for problematic content
+                pdf.multi_cell(0, 6, f'{label}: {value}')
+        
+        pdf.ln(10)
     
-    # DGMS Compliance
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 14)
-    pdf.set_fill_color(230, 230, 250)
-    pdf.cell(0, 10, 'DGMS COMPLIANCE & REGULATIONS', ln=True, fill=True)
-    pdf.ln(5)
-    
-    pdf.set_font('Arial', '', 10)
-    for key, reference in DGMS_REFERENCES.items():
-        pdf.multi_cell(0, 6, f'- {key.replace("_", " ").title()}: {reference}')
-    
-    # Warnings and notes
-    if dgms_warnings:
-        pdf.ln(5)
-        pdf.set_font('Arial', 'B', 12)
-        pdf.set_text_color(255, 0, 0)  # Red
-        pdf.cell(0, 8, 'SAFETY ALERTS & COMPLIANCE NOTES:', ln=True)
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_font('Arial', '', 10)
+        # Add enhanced visualizations with better error handling
+        visualization_files = [
+            ('reports/stope_3d_isometric.png', 'Realistic 3D Stope Visualization'),
+            ('reports/stope_cross_sections.png', 'Cross-Sectional Views'),
+            ('reports/stope_plan_view.png', 'Plan View Layout'),
+            ('reports/safety_factor_gauge.png', 'Safety Factor Analysis'),
+            ('reports/stress_strength_comparison.png', 'Stress vs Strength Analysis')
+        ]
+        
+        for viz_file, caption in visualization_files:
+            pdf.add_page()
+            try:
+                pdf.set_font('Helvetica', 'B', 14)
+            except:
+                pdf.set_font('Arial', 'B', 14)
+                
+            pdf.cell(0, 10, caption, ln=True, align='C')
+            pdf.ln(5)
+            
+            if os.path.exists(viz_file):
+                try:
+                    _report_logger.info(f"Embedding visualization: {viz_file}")
+                    # Use smaller width to ensure fit
+                    pdf.image(viz_file, x=15, w=170)
+                except Exception as e:
+                    try:
+                        pdf.set_font('Helvetica', '', 10)
+                    except:
+                        pdf.set_font('Arial', '', 10)
+                    pdf.multi_cell(0, 6, f'[Error loading {caption}: {str(e)}]')
+                    _report_logger.error(f"Failed to embed image {viz_file} in PDF: {str(e)}")
+            else:
+                try:
+                    pdf.set_font('Helvetica', '', 10)
+                except:
+                    pdf.set_font('Arial', '', 10)
+                pdf.multi_cell(0, 6, f'[Missing visualization: {caption}]')
+                _report_logger.warning(f"Missing visualization file: {viz_file}")
+            pdf.ln(10)
+            
+        # Cost Analysis with improved formatting
+        if costs:
+            pdf.add_page()
+            try:
+                pdf.set_font('Helvetica', 'B', 14)
+            except:
+                pdf.set_font('Arial', 'B', 14)
+                
+            pdf.set_fill_color(230, 230, 250)
+            pdf.cell(0, 10, 'COST ANALYSIS (INR)', ln=True, fill=True)
+            pdf.ln(5)
+            
+            try:
+                pdf.set_font('Helvetica', 'B', 12)
+            except:
+                pdf.set_font('Arial', 'B', 12)
+                
+            pdf.set_text_color(0, 0, 139)  # Dark blue
+            pdf.cell(0, 8, f'Total Project Cost: INR {total_cost:,.0f}', ln=True)
+            pdf.set_text_color(0, 0, 0)
+            pdf.ln(5)
+            
+            try:
+                pdf.set_font('Helvetica', 'B', 11)
+            except:
+                pdf.set_font('Arial', 'B', 11)
+                
+            pdf.cell(0, 8, 'Detailed Cost Breakdown:', ln=True)
+            
+            try:
+                pdf.set_font('Helvetica', '', 10)
+            except:
+                pdf.set_font('Arial', '', 10)
+                
+            cost_items = ['labor', 'equipment', 'support', 'ventilation']
+            for item in cost_items:
+                if item in costs:
+                    percentage = (costs[item] / total_cost * 100) if total_cost > 0 else 0
+                    cost_line = f'  - {item.title()}: INR {costs[item]:,.0f} ({percentage:.1f}%)'
+                    try:
+                        pdf.cell(0, 6, cost_line, ln=True)
+                    except:
+                        pdf.multi_cell(0, 6, cost_line)
+        
+        # Save PDF with error handling
+        try:
+            pdf.output(filename)
+            _report_logger.info(f"PDF report successfully generated: {filename}")
+            return filename
+        except Exception as e:
+            _report_logger.error(f"Failed to save PDF: {e}")
+            raise
+            
+    except Exception as e:
+        _report_logger.error(f"Error generating PDF report: {e}")
+        # Create a simplified fallback report
+        try:
+            return _create_fallback_pdf_report(results, filename)
+        except:
+            _report_logger.error("Even fallback PDF generation failed")
+            return None
+
+def _create_fallback_pdf_report(results, filename):
+    """Create a simplified PDF report when the main generation fails"""
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_margins(20, 20, 20)
+        
+        pdf.set_font('Arial', 'B', 16)
+        pdf.cell(0, 15, 'MINING STOPE ANALYSIS REPORT', ln=True, align='C')
+        pdf.ln(10)
+        
+        pdf.set_font('Arial', '', 12)
+        
+        # Basic information
+        stability = results.get('stability', {})
+        dimensions = results.get('dimensions', {})
+        
+        basic_info = [
+            f"Stope Type: {results.get('stope_type', 'N/A')}",
+            f"Safety Factor: {stability.get('safety_factor', 'N/A')}",
+            f"DGMS Compliant: {stability.get('dgms_compliant', 'N/A')}",
+            f"Dimensions: {dimensions.get('length', 'N/A')} x {dimensions.get('width', 'N/A')} x {dimensions.get('height', 'N/A')} m",
+            f"Volume: {dimensions.get('volume', 'N/A')} m3"
+        ]
+        
+        for info in basic_info:
+            pdf.multi_cell(0, 8, info)
+        
+        pdf.output(filename)
+        _report_logger.info(f"Fallback PDF report created: {filename}")
+        return filename
+        
+    except Exception as e:
+        _report_logger.error(f"Fallback PDF creation failed: {e}")
+        return None
         for warning in dgms_warnings:
             pdf.multi_cell(0, 6, f'- {warning}')
     
