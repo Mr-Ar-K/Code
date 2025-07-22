@@ -12,38 +12,13 @@ REQUIRED_FIELDS = [
 
 def validate_inputs(inputs):
     """Enhanced input validation with realistic mining parameters"""
-    missing = [f for f in REQUIRED_FIELDS if f not in inputs or inputs[f] is None]
-    if missing:
-        return False, f"Missing or invalid fields: {', '.join(missing)}."
-    
-    # Additional validation for realistic mining parameters
-    try:
-        dip_angle = float(inputs['dip_angle'])
-        ore_thickness = float(inputs['ore_thickness'])
-        rqd = float(inputs['rqd'])
-        mining_depth = float(inputs['mining_depth'])
-        
-        # Validate realistic ranges
-        if not (0 <= dip_angle <= 90):
-            return False, "Dip angle must be between 0 and 90 degrees."
-        if not (0.3 <= ore_thickness <= 100):
-            return False, "Ore thickness must be between 0.3 and 100 meters."
-        if not (25 <= rqd <= 100):
-            return False, "RQD must be between 25% and 100%."
-        if not (5 <= mining_depth <= 2000):
-            return False, "Mining depth must be between 5 and 2000 meters."
-            
-    except (ValueError, TypeError):
-        return False, "All numerical inputs must be valid numbers."
-    
-    return True, None
+    # Redundant function: input validation is handled by input_validation.py
+    # This function should be removed. Inputs are assumed validated externally.
+    pass
 
 def calculate_stope_design(inputs):
     """Enhanced stope design calculation with realistic parameters"""
-    valid, error = validate_inputs(inputs)
-    if not valid:
-        return {'error': error}
-
+    # Inputs are assumed validated by input_validation.py
     # Determine stope type first
     stope_type = determine_stope_type(inputs)
     inputs['stope_type'] = stope_type

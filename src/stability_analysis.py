@@ -82,9 +82,12 @@ def calculate_q_standard(rqd):
 
 def calculate_stability_number_standard(q_val, dip, depth):
     """N' = Q * A * B * C"""
-    a = 0.85 if depth>500 else 1.0
-    b = max(0.2, min(1.0, 0.3 + (dip-20)/70))
-    c = 8 - 7*math.cos(math.radians(dip))
+    # Depth Adjustment Factor (A): 1.0 if depth > 500, else 0.85
+    a = 1.0 if depth > 500 else 0.85
+    # Orientation Factor (B): range 0.3 to 0.7
+    b = max(0.3, min(0.7, 0.3 + (dip-20)/70))
+    # Gravity Factor (C): 1 - cos(theta)
+    c = 1 - math.cos(math.radians(dip))
     return q_val * a * b * c
 
 def calculate_horizontal_k_ratio_standard(depth):
@@ -107,8 +110,10 @@ def calculate_hoek_brown_strength_standard(rqd):
     """Unconfined rock mass strength σcm = σci * s^a"""
     sigma_ci = calculate_ucs_from_rqd_standard(rqd)
     gsi      = calculate_gsi_from_rqd_standard(rqd)
-    mb       = HOEK_MI_DEFAULT * math.exp((gsi-100)/28)
-    s        = math.exp((gsi-100)/9)
+    # Hoek-Brown disturbance factor D is assumed 0 (undisturbed rock mass)
+    HOEK_D_FACTOR = 0  # If D is to be used, update accordingly
+    mb       = HOEK_MI_DEFAULT * math.exp((gsi-100)/28) * (1 - HOEK_D_FACTOR)
+    s        = math.exp((gsi-100)/9) * (1 - HOEK_D_FACTOR)
     a        = 0.5 + (1/6)*(math.exp(-gsi/15)-math.exp(-20/3))
     return sigma_ci * (s**a)
 
