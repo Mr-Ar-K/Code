@@ -72,13 +72,14 @@ def _prism_faces(vertices):
 # GEOTECHNICAL FORMULAE
 # ============================================================================
 
-def calculate_rmr_standard(rqd):
-    """RMR = 0.77 * RQD + 12 + CMRI adjustment"""
-    return max(0, min(100, 0.77*rqd + 12 + CMRI_RMR_ADJUSTMENT))
 
 def calculate_q_standard(rqd):
     """Q = (RQD/Jn)*(Jr/Ja)*(Jw/SRF)"""
     return (rqd/Q_JOINT_SET_NUMBER) * (Q_JOINT_ROUGHNESS/Q_JOINT_ALTERATION) * (Q_WATER_FACTOR/Q_STRESS_REDUCTION)
+
+def calculate_rmr_standard(rqd):
+    """RMR = 9 ln(Q) + 44 """
+    return max(0, min(100, 9 * math.log10(calculate_q_standard(rqd)) + 44))
 
 def calculate_stability_number_standard(q_val, dip, depth):
     """N' = Q * A * B * C"""
