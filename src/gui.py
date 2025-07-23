@@ -297,10 +297,15 @@ class MiningStopeDesignApp:
         
         self.results_text.insert(tk.END, "DIMENSIONS:\n", "subheading")
         for key, value in results['dimensions'].items():
-            if key != 'volume':
-                self.results_text.insert(tk.END, f"  {key.replace('_', ' ').title()}: {value} m\n")
-            else:
+            if key in ['rmr', 'q_value', 'stability_number', 'stope_type']:
+                # These are dimensionless values - no units
+                self.results_text.insert(tk.END, f"  {key.replace('_', ' ').title()}: {value}\n")
+            elif key == 'volume':
+                # Volume needs cubic meters
                 self.results_text.insert(tk.END, f"  {key.replace('_', ' ').title()}: {value} m³\n")
+            else:
+                # Physical dimensions need meters
+                self.results_text.insert(tk.END, f"  {key.replace('_', ' ').title()}: {value} m\n")
         
         self.results_text.insert(tk.END, "\nSTABILITY ANALYSIS:\n", "subheading")
         

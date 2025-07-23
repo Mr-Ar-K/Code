@@ -47,6 +47,8 @@ def generate_summary_text(results, filename='reports/stope_summary.txt', notes=N
     summary.append(f"Volume: {dimensions.get('volume', 'N/A')} cubic meters")
     summary.append(f"Hydraulic Radius: {dimensions.get('hydraulic_radius', 'N/A')} meters")
     summary.append(f"Rock Mass Rating (RMR): {dimensions.get('rmr', 'N/A')}")
+    summary.append(f"Q Value: {dimensions.get('q_value', 'N/A')}")
+    summary.append(f"Stability Number: {dimensions.get('stability_number', 'N/A')}")
     summary.append("")
     
     # Detailed stability analysis
@@ -245,7 +247,9 @@ def generate_pdf_report(results, filename='reports/stope_report.pdf', notes=None
             ('Height', f"{dimensions.get('height', 'N/A')} m"),
             ('Volume', f"{dimensions.get('volume', 'N/A')} m3"),
             ('Hydraulic Radius', f"{dimensions.get('hydraulic_radius', 'N/A')} m"),
-            ('Rock Mass Rating', f"{dimensions.get('rmr', 'N/A')}")
+            ('Rock Mass Rating', f"{dimensions.get('rmr', 'N/A')}"),
+            ('Q Value', f"{dimensions.get('q_value', 'N/A')}"),
+            ('Stability Number', f"{dimensions.get('stability_number', 'N/A')}")
         ]
         
         for label, value in spec_data:
