@@ -100,6 +100,8 @@ class MiningStopeDesignApp:
             ('ore_thickness', 'Ore Body Thickness (m):', "0.3-100"),
             ('dip_angle', 'Dip Angle (degrees):', "0-70"),
             ('rqd', 'Rock Quality Designation (%):', "25-100"),
+            ('q_joint_set_number', 'Joint Set Number (Jn):', "0.5-20"),
+            ('q_joint_roughness', 'Joint Roughness (Jr):', "0.5-4"),
         ]
         
         for i, (field, label, tooltip) in enumerate(fields_left):
@@ -115,6 +117,9 @@ class MiningStopeDesignApp:
         
         fields_right = [
             ('mining_depth', 'Mining Depth (m):', "5-2000"),
+            ('q_joint_alteration', 'Joint Alteration (Ja):', "0.75-20"),
+            ('q_water_factor', 'Water Factor (Jw):', "0.05-1.0"),
+            ('q_stress_reduction', 'Stress Reduction Factor (SRF):', "0.5-20"),
         ]
         
         for i, (field, label, tooltip) in enumerate(fields_right):

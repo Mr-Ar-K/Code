@@ -22,13 +22,6 @@ IBE_STRESS_FACTOR      = 0.028  # MPa/m vertical stress coefficient
 
 HOEK_MI_DEFAULT        = 15     # Hoek–Brown intact material constant
 
-# Barton Q-System typical parameters for Indian metal mines
-Q_JOINT_SET_NUMBER     = 9
-Q_JOINT_ROUGHNESS      = 2
-Q_JOINT_ALTERATION     = 1
-Q_WATER_FACTOR         = 1.0
-Q_STRESS_REDUCTION     = 2.5
-
 ENABLE_ASYNC_3D        = True
 _3D_EXECUTOR           = ThreadPoolExecutor(max_workers=1)
 
@@ -73,13 +66,32 @@ def _prism_faces(vertices):
 # ============================================================================
 
 
-def calculate_q_standard(rqd):
+def calculate_q_standard(rqd, q_params=None):
     """Q = (RQD/Jn)*(Jr/Ja)*(Jw/SRF)"""
-    return (rqd/Q_JOINT_SET_NUMBER) * (Q_JOINT_ROUGHNESS/Q_JOINT_ALTERATION) * (Q_WATER_FACTOR/Q_STRESS_REDUCTION)
+    if q_params is None:
+        raise ValueError("Q-system parameters are required. Please provide q_params dictionary with all Q-system values.")
+    
+    # Extract user-provided parameters (required)
+    jn = q_params.get('q_joint_set_number')
+    jr = q_params.get('q_joint_roughness') 
+    ja = q_params.get('q_joint_alteration')
+    jw = q_params.get('q_water_factor')
+    srf = q_params.get('q_stress_reduction')
+    
+    # Validate all parameters are provided
+    if any(param is None for param in [jn, jr, ja, jw, srf]):
+        missing = [name for name, param in [
+            ('q_joint_set_number', jn), ('q_joint_roughness', jr), 
+            ('q_joint_alteration', ja), ('q_water_factor', jw), 
+            ('q_stress_reduction', srf)
+        ] if param is None]
+        raise ValueError(f"Missing Q-system parameters: {', '.join(missing)}")
+    
+    return (rqd/jn) * (jr/ja) * (jw/srf)
 
-def calculate_rmr_standard(rqd):
+def calculate_rmr_standard(rqd, q_params=None):
     """RMR = 9 ln(Q) + 44 """
-    return max(0, min(100, 9 * math.log10(calculate_q_standard(rqd)) + 44))
+    return max(0, min(100, 9 * math.log10(calculate_q_standard(rqd, q_params)) + 44))
 
 def calculate_stability_number_standard(q_val, dip, depth):
     """N' = Q * A * B * C"""
@@ -164,9 +176,16 @@ def calculate_stope_dimensions(inputs):
     depth         = inputs.get('mining_depth', 300)
     stope_type    = determine_stope_type(inputs)
 
+    # Extract Q-system parameters from inputs
+    q_params = {}
+    for param in ['q_joint_set_number', 'q_joint_roughness', 'q_joint_alteration', 
+                  'q_water_factor', 'q_stress_reduction']:
+        if param in inputs:
+            q_params[param] = inputs[param]
+
     # Classification indices
-    rmr           = calculate_rmr_standard(rqd)
-    q_value       = calculate_q_standard(rqd)
+    rmr           = calculate_rmr_standard(rqd, q_params if q_params else None)
+    q_value       = calculate_q_standard(rqd, q_params if q_params else None)
     n_prime       = calculate_stability_number_standard(q_value, dip_angle, depth)
 
     # Design hydraulic radius (Mathews–Potvin)

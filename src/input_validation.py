@@ -67,6 +67,31 @@ def validate_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
                 'description': 'Unconfined Compressive Strength (MPa)',
                 'reference': 'Typical rock strength range',
                 'optional': True
+            },
+            'q_joint_set_number': {
+                'min': 0.5, 'max': 20.0,
+                'description': 'Joint Set Number (Jn)',
+                'reference': 'Barton Q-system standards'
+            },
+            'q_joint_roughness': {
+                'min': 0.5, 'max': 4.0,
+                'description': 'Joint Roughness Number (Jr)',
+                'reference': 'Barton Q-system standards'
+            },
+            'q_joint_alteration': {
+                'min': 0.75, 'max': 20.0,
+                'description': 'Joint Alteration Number (Ja)',
+                'reference': 'Barton Q-system standards'
+            },
+            'q_water_factor': {
+                'min': 0.05, 'max': 1.0,
+                'description': 'Joint Water Reduction Factor (Jw)',
+                'reference': 'Barton Q-system standards'
+            },
+            'q_stress_reduction': {
+                'min': 0.5, 'max': 20.0,
+                'description': 'Stress Reduction Factor (SRF)',
+                'reference': 'Barton Q-system standards'
             }
         }
 
@@ -157,6 +182,62 @@ def validate_inputs(inputs: Dict[str, Any]) -> Dict[str, Any]:
                 dgms_warnings.append(
                     "DGMS Note: Thin ore bodies (<1m) with steep dip (>45°) may require "
                     "specialized mining methods."
+                )
+
+        # Q-system parameter validation and warnings
+        q_params = ['q_joint_set_number', 'q_joint_roughness', 'q_joint_alteration', 
+                   'q_water_factor', 'q_stress_reduction']
+        if all(param in validated for param in q_params):
+            jn = validated['q_joint_set_number']
+            jr = validated['q_joint_roughness']
+            ja = validated['q_joint_alteration']
+            jw = validated['q_water_factor']
+            srf = validated['q_stress_reduction']
+            
+            # Calculate Q-value for validation
+            q_value = (validated.get('rqd', 50) / jn) * (jr / ja) * (jw / srf)
+            
+            # Q-system specific warnings
+            if jn > 15:
+                dgms_warnings.append(
+                    "Q-System Alert: Very high joint set number (Jn>15) indicates heavily jointed rock mass."
+                )
+            
+            if jr < 1.0:
+                dgms_warnings.append(
+                    "Q-System Warning: Low joint roughness (Jr<1.0) may reduce stability."
+                )
+                
+            if ja > 10:
+                dgms_warnings.append(
+                    "Q-System Alert: High joint alteration (Ja>10) indicates weak or clay-filled joints."
+                )
+                
+            if jw < 0.33:
+                dgms_warnings.append(
+                    "Q-System Warning: Low water factor (Jw<0.33) indicates significant water inflow issues."
+                )
+                
+            if srf > 10:
+                dgms_warnings.append(
+                    "Q-System Alert: High stress reduction factor (SRF>10) indicates high stress conditions."
+                )
+            
+            # Overall Q-value interpretation
+            if q_value < 0.1:
+                dgms_warnings.append(
+                    f"Q-System Classification: Exceptionally poor rock mass (Q={q_value:.3f}). "
+                    "Requires extensive support per DGMS guidelines."
+                )
+            elif q_value < 1.0:
+                dgms_warnings.append(
+                    f"Q-System Classification: Very poor rock mass (Q={q_value:.3f}). "
+                    "Enhanced support design required."
+                )
+            elif q_value > 40:
+                dgms_warnings.append(
+                    f"Q-System Classification: Exceptionally good rock mass (Q={q_value:.3f}). "
+                    "Minimal support may be sufficient."
                 )
 
         # Return validation results
